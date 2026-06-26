@@ -197,7 +197,7 @@ void pcl::MultithreadedGeneralizedIterativeClosestPoint<PointSource,
                       << frozen_count << ", dynamic=" << dynamic_count);
     }
   }
-
+                       }
   ////////////////////////////////////////////////////////////////////////////////////////
   template <typename PointSource, typename PointTarget>
   void pcl::MultithreadedGeneralizedIterativeClosestPoint<

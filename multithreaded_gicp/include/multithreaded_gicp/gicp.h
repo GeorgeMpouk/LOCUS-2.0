@@ -127,8 +127,8 @@ public:
       reclculate_cov_normal_point_clouds_(false),
       recompute_target_cov_(false),
       recompute_source_cov(false),
-      source_covariance_mode(CovarianceMode::NORMALS),
-      target_covariance_mode(CovarianceMode::NORMALS),
+      source_covariance_mode_(CovarianceMode::NORMALS),
+      target_covariance_mode_(CovarianceMode::NORMALS),
       hybrid_planarity_threshold_(0.5),
       hybrid_linearity_threshold_(0.5),
       hybrid_curvature_threshold_(0.03),
@@ -513,7 +513,7 @@ private:
   double hybrid_planarity_threshold_;
   double hybrid_linearity_threshold_;
   double hybrid_curvature_threshold_;
-  int hybrid_min_neighbors;
+  int hybrid_min_neighbors_;
 };
 } // namespace pcl
 
