@@ -148,7 +148,12 @@ private:
     int num_threads;
     // Enable GICP timing information print logs
     bool enable_timing_output;
-
+    std::string source_covariance_mode;
+    std::string target_covariance_mode;
+    double hybrid_planarity_threshold;
+    double hybrid_linearity_threshold;
+    double hybrid_curvature_threshold;
+    int hybrid_min_neighbors;
   } params_;
 
   pcl::Registration<PointF, PointF>::Ptr icp_;

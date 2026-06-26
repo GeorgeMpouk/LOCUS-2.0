@@ -13,8 +13,9 @@ bool NormalComputation::child_init(ros::NodeHandle& nh, bool& has_service) {
   norm_est_.setSearchMethod(search_method_);
 
   has_service = true;
-  srv_ = boost::make_shared<dynamic_reconfigure::Server<
-      point_cloud_filter::NormalComputationConfig>>(nh);
+  srv_ = boost::make_shared<
+      dynamic_reconfigure::Server<point_cloud_filter::NormalComputationConfig>>(
+      nh);
   dynamic_reconfigure::Server<
       point_cloud_filter::NormalComputationConfig>::CallbackType f =
       boost::bind(&NormalComputation::config_callback, this, _1, _2);
@@ -45,6 +46,7 @@ void NormalComputation::filter(const PointCloud2::ConstPtr& input,
     point.normal_x = normals->at(i).normal_x;
     point.normal_y = normals->at(i).normal_y;
     point.normal_z = normals->at(i).normal_z;
+    point.curvature = normals->at(i).curvature; // added this
     output_cloud_with_normals->points.push_back(point);
   }
   output_cloud_with_normals->header = input_cloud->header;
@@ -82,5 +84,4 @@ void NormalComputation::config_callback(
 
 } // namespace point_cloud_filter
 
-PLUGINLIB_EXPORT_CLASS(point_cloud_filter::NormalComputation,
-                       nodelet::Nodelet)
+PLUGINLIB_EXPORT_CLASS(point_cloud_filter::NormalComputation, nodelet::Nodelet)

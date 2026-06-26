@@ -89,6 +89,22 @@ bool PointCloudOdometry::LoadParameters(const ros::NodeHandle& n) {
     return false;
   if (!pu::Get("icp/recompute_covariances", recompute_covariances_))
     return false;
+  pu::Get("localization/source_covariance_mode",
+          params_.source_covariance_mode,
+          std::string("legacy"));
+  pu::Get("localization/target_covariance_mode",
+          params_.target_covariance_mode,
+          std::string("legacy"));
+  pu::Get("localization/hybrid_planarity_threshold",
+          params_.hybrid_planarity_threshold,
+          0.5);
+  pu::Get("localization/hybrid_linearity_threshold",
+          params_.hybrid_linearity_threshold,
+          0.5);
+  pu::Get("localization/hybrid_curvature_threshold",
+          params_.hybrid_curvature_threshold,
+          0.03);
+  pu::Get("localization/hybrid_min_neighbors", params_.hybrid_min_neighbors, 6);
 
   if (!pu::Get("b_verbose", b_verbose_))
     return false;
@@ -152,6 +168,12 @@ bool PointCloudOdometry::SetupICP() {
     gicp->enableTimingOutput(params_.enable_timing_output);
     gicp->RecomputeTargetCovariance(recompute_covariances_);
     gicp->RecomputeSourceCovariance(recompute_covariances_);
+    gicp->SetSourceCovarianceMode(params_.source_covariance_mode);
+    gicp->SetTargetCovarianceMode(params_.target_covariance_mode);
+    gicp->SetHybridPlanarityThresholds(params_.hybrid_planarity_threshold,
+                                       params_.hybrid_linearity_threshold,
+                                       params_.hybrid_curvature_threshold,
+                                       params_.hybrid_min_neighbors);
     gicp->setEuclideanFitnessEpsilon(0.005);
     ROS_INFO_STREAM("GICP");
     ROS_INFO_STREAM("getMaxCorrespondenceDistance: "
@@ -205,7 +227,7 @@ bool PointCloudOdometry::SetupICP() {
 
 void PointCloudOdometry::EnableOdometryIntegration() {
   b_use_odometry_integration_ = true;
-  b_use_imu_integration_ = false; 
+  b_use_imu_integration_ = false;
 }
 
 void PointCloudOdometry::EnableImuIntegration() {
@@ -272,7 +294,7 @@ bool PointCloudOdometry::UpdateICP() {
     T = T * imu_prior_;
   } else if (b_use_odometry_integration_) {
     T = T * odometry_prior_;
-  } 
+  }
 
   if (b_is_flat_ground_assumption_) {
     tf::Matrix3x3 rotation(T(0, 0),
