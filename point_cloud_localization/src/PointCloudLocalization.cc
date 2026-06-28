@@ -105,6 +105,16 @@ bool PointCloudLocalization::LoadParameters(const ros::NodeHandle& n) {
                recompute_covariance_scan_))
     return false;
 
+  pu::Get("localization/source_covariance_mode",
+          params_.source_covariance_mode,
+          std::string("legacy"));
+  pu::Get("localization/target_covariance_mode",
+          params_.target_covariance_mode,
+          std::string("legacy"));
+  pu::Get("localization/hybrid_max_curvature",
+          params_.hybrid_max_curvature,
+          0.03);
+
   double init_roll = 0.0, init_pitch = 0.0, init_yaw = 0.0;
   gu::Quat q(gu::Quat(init_qw, init_qx, init_qy, init_qz));
   gu::Rot3 R;
@@ -242,6 +252,9 @@ bool PointCloudLocalization::SetupICP() {
     gicp->RecomputeSourceCovariance(
         recompute_covariance_scan_); // local scan we don't need to
                                      // recompute
+    gicp->SetSourceCovarianceMode(params_.source_covariance_mode);
+    gicp->SetTargetCovarianceMode(params_.target_covariance_mode);
+    gicp->SetHybridNormalCurvatureThreshold(params_.hybrid_max_curvature);
     gicp->setEuclideanFitnessEpsilon(0.01);
     ROS_INFO_STREAM("GICP activated.");
     ROS_INFO_STREAM(

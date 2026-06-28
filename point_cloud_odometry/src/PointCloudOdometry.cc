@@ -89,22 +89,15 @@ bool PointCloudOdometry::LoadParameters(const ros::NodeHandle& n) {
     return false;
   if (!pu::Get("icp/recompute_covariances", recompute_covariances_))
     return false;
-  pu::Get("localization/source_covariance_mode",
+  pu::Get("icp/source_covariance_mode",
           params_.source_covariance_mode,
           std::string("legacy"));
-  pu::Get("localization/target_covariance_mode",
+  pu::Get("icp/target_covariance_mode",
           params_.target_covariance_mode,
           std::string("legacy"));
-  pu::Get("localization/hybrid_planarity_threshold",
-          params_.hybrid_planarity_threshold,
-          0.5);
-  pu::Get("localization/hybrid_linearity_threshold",
-          params_.hybrid_linearity_threshold,
-          0.5);
-  pu::Get("localization/hybrid_curvature_threshold",
-          params_.hybrid_curvature_threshold,
+  pu::Get("icp/hybrid_max_curvature",
+          params_.hybrid_max_curvature,
           0.03);
-  pu::Get("localization/hybrid_min_neighbors", params_.hybrid_min_neighbors, 6);
 
   if (!pu::Get("b_verbose", b_verbose_))
     return false;
@@ -170,10 +163,7 @@ bool PointCloudOdometry::SetupICP() {
     gicp->RecomputeSourceCovariance(recompute_covariances_);
     gicp->SetSourceCovarianceMode(params_.source_covariance_mode);
     gicp->SetTargetCovarianceMode(params_.target_covariance_mode);
-    gicp->SetHybridPlanarityThresholds(params_.hybrid_planarity_threshold,
-                                       params_.hybrid_linearity_threshold,
-                                       params_.hybrid_curvature_threshold,
-                                       params_.hybrid_min_neighbors);
+    gicp->SetHybridNormalCurvatureThreshold(params_.hybrid_max_curvature);
     gicp->setEuclideanFitnessEpsilon(0.005);
     ROS_INFO_STREAM("GICP");
     ROS_INFO_STREAM("getMaxCorrespondenceDistance: "

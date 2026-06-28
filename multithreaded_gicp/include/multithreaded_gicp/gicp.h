@@ -118,7 +118,7 @@ public:
 
   typedef Eigen::Matrix<double, 6, 1> Vector6d;
 
-  enum class CovarianceMode { NORMALS, RECOMPUTE, HYBRID_PLANARITY };
+  enum class CovarianceMode { NORMALS, RECOMPUTE, HYBRID_NORMAL_QUALITY };
 
   /** \brief Empty constructor. */
   MultithreadedGeneralizedIterativeClosestPoint()
@@ -129,10 +129,7 @@ public:
       recompute_source_cov(false),
       source_covariance_mode_(CovarianceMode::NORMALS),
       target_covariance_mode_(CovarianceMode::NORMALS),
-      hybrid_planarity_threshold_(0.5),
-      hybrid_linearity_threshold_(0.5),
-      hybrid_curvature_threshold_(0.03),
-      hybrid_min_neighbors_(6),
+      hybrid_max_curvature_(0.03),
       k_num_threads_(1),
       gicp_epsilon_(0.001),
       rotation_epsilon_(2e-3),
@@ -328,14 +325,14 @@ public:
     target_covariance_mode_ = CovarianceModeFromString(mode);
   }
 
-  void SetHybridPlanarityThresholds(double planarity_threshold,
-                                    double linearity_threshold,
-                                    double curvature_threshold,
-                                    int min_neighbors) {
-    hybrid_planarity_threshold_ = planarity_threshold;
-    hybrid_linearity_threshold_ = linearity_threshold;
-    hybrid_curvature_threshold_ = curvature_threshold;
-    hybrid_min_neighbors_ = std::max(3, min_neighbors);
+  void SetHybridNormalCurvatureThreshold(double max_curvature) {
+    if (!std::isfinite(max_curvature) || max_curvature < 0.0) {
+      ROS_WARN_STREAM("Invalid hybrid normal curvature threshold "
+                      << max_curvature << "; keeping "
+                      << hybrid_max_curvature_);
+      return;
+    }
+    hybrid_max_curvature_ = max_curvature;
   }
 
 protected:
@@ -396,7 +393,7 @@ protected:
                           MatricesVector& cloud_covariances,
                           CovarianceMode covariance_mode);
 
-  // helper functions to safely store PointF normals
+  // Helpers for covariance modes that use stored PointF normals.
   //-----------------------------------------------------------------------------
   CovarianceMode CovarianceModeFromString(const std::string& mode) const {
     if (mode == "normals") {
@@ -405,8 +402,8 @@ protected:
     if (mode == "recompute") {
       return CovarianceMode::RECOMPUTE;
     }
-    if (mode == "hybrid_planarity") {
-      return CovarianceMode::HYBRID_PLANARITY;
+    if (mode == "hybrid" || mode == "hybrid_planarity") {
+      return CovarianceMode::HYBRID_NORMAL_QUALITY;
     }
 
     ROS_WARN_STREAM("Unknown covariance mode '"
@@ -415,13 +412,25 @@ protected:
   }
 
   template <typename PointT>
-  bool HasFiniteNormal(const PointT&) const {
+  bool HasReliableStoredNormal(const PointT&) const {
     return false;
   }
 
-  bool HasFiniteNormal(const PointF& point) const {
-    return std::isfinite(point.normal_x) && std::isfinite(point.normal_y) &&
-        std::isfinite(point.normal_z);
+  bool HasReliableStoredNormal(const PointF& point) const {
+    if (!std::isfinite(point.normal_x) ||
+        !std::isfinite(point.normal_y) ||
+        !std::isfinite(point.normal_z) ||
+        !std::isfinite(point.curvature)) {
+      return false;
+    }
+
+    const double normal_squared_norm =
+        point.normal_x * point.normal_x +
+        point.normal_y * point.normal_y +
+        point.normal_z * point.normal_z;
+    return normal_squared_norm > 1e-12 &&
+        point.curvature >= 0.0 &&
+        point.curvature <= hybrid_max_curvature_;
   }
 
   template <typename PointT>
@@ -430,7 +439,15 @@ protected:
   }
 
   Eigen::Matrix3d CovarianceFromStoredNormal(const PointF& point) const {
-    return PCLTwoPlaneVectorsFromNormal<double>(point);
+    PointF normalized_point = point;
+    const double inverse_norm =
+        1.0 / std::sqrt(point.normal_x * point.normal_x +
+                        point.normal_y * point.normal_y +
+                        point.normal_z * point.normal_z);
+    normalized_point.normal_x *= inverse_norm;
+    normalized_point.normal_y *= inverse_norm;
+    normalized_point.normal_z *= inverse_norm;
+    return PCLTwoPlaneVectorsFromNormal<double>(normalized_point);
   }
 
   //-----------------------------------------------------------------------------
@@ -510,10 +527,7 @@ private:
   CovarianceMode source_covariance_mode_;
   CovarianceMode target_covariance_mode_;
 
-  double hybrid_planarity_threshold_;
-  double hybrid_linearity_threshold_;
-  double hybrid_curvature_threshold_;
-  int hybrid_min_neighbors_;
+  double hybrid_max_curvature_;
 };
 } // namespace pcl
 

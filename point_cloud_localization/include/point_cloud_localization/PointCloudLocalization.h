@@ -209,6 +209,9 @@ private:
     int num_threads;
     // Enable GICP timing information print logs
     bool enable_timing_output;
+    std::string source_covariance_mode;
+    std::string target_covariance_mode;
+    double hybrid_max_curvature;
     // Radius used when computing ptcld normals
     //    double normal_radius_;
     int k_nearest_neighbours_;

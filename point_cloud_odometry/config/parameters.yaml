@@ -1,11 +1,10 @@
 icp:
+  # legacy preserves recompute_covariances; hybrid gates stored normals by
+  # curvature and falls back to standard kNN/PCA GICP when they are unreliable.
   source_covariance_mode: legacy
   target_covariance_mode: legacy
 
-  hybrid_planarity_threshold: 0.5
-  hybrid_linearity_threshold: 0.5
-  hybrid_curvature_threshold: 0.03
-  hybrid_min_neighbors: 6
+  hybrid_max_curvature: 0.03
 
   # Registration method
   registration_method: gicp

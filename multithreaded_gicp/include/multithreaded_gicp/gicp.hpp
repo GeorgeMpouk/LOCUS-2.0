@@ -88,10 +88,8 @@ void pcl::MultithreadedGeneralizedIterativeClosestPoint<PointSource,
     }
 
     int enable_omp = (1 < k_num_threads_);
-    // These counters tell us how many points used normal covariance vs fallback
-    // covariance.
-    int frozen_count = 0;
-    int dynamic_count = 0;
+    int stored_normal_count = 0;
+    int gicp_fallback_count = 0;
 #pragma omp parallel for schedule(dynamic, 1) if (enable_omp)
     for (int i = 0; i < cloud->points.size(); i++) {
       if (k_enable_timing_output_) {
@@ -100,13 +98,26 @@ void pcl::MultithreadedGeneralizedIterativeClosestPoint<PointSource,
         }
       }
 
+      const PointT& query_point = cloud->points[i];
+      Eigen::Matrix3d& cov = cloud_covariances[i];
+      cov.setZero();
+
+      if (covariance_mode == CovarianceMode::HYBRID_NORMAL_QUALITY &&
+          HasReliableStoredNormal(query_point)) {
+        cov = CovarianceFromStoredNormal(query_point);
+#pragma omp atomic
+        stored_normal_count++;
+        continue;
+      }
+
+      if (covariance_mode == CovarianceMode::HYBRID_NORMAL_QUALITY) {
+#pragma omp atomic
+        gicp_fallback_count++;
+      }
+
       Eigen::Vector3d mean;
       std::vector<int> nn_indices(k_correspondences_);
       std::vector<float> nn_dist_sq(k_correspondences_);
-      const PointT& query_point = cloud->points[i];
-      Eigen::Matrix3d& cov = cloud_covariances[i];
-      // Zero out the cov and mean
-      cov.setZero();
       mean.setZero();
 
       // Search for the K nearest neighbours
@@ -145,43 +156,9 @@ void pcl::MultithreadedGeneralizedIterativeClosestPoint<PointSource,
       Eigen::JacobiSVD<Eigen::Matrix3d> svd(cov, Eigen::ComputeFullU);
       cov.setZero();
       Eigen::Matrix3d U = svd.matrixU();
-      Eigen::Vector3d singular_values = svd.singularValues();
-
-      double lambda3 = singular_values(0);
-      double lambda2 = singular_values(1);
-      double lambda1 = singular_values(2);
-      double lambda_sum = lambda1 + lambda2 + lambda3;
-
-      double planarity = 0.0;
-      double linearity = 0.0;
-      double curvature = 1.0;
-
-      if (lambda3 > 1e-12 && lambda_sum > 1e-12) {
-        planarity = (lambda2 - lambda1) / lambda3;
-        linearity = (lambda3 - lambda2) / lambda3;
-        curvature = lambda1 / lambda_sum;
-      }
-
-      bool use_normal_covariance =
-          covariance_mode == CovarianceMode::HYBRID_PLANARITY &&
-          k_correspondences_ >= hybrid_min_neighbors_ &&
-          HasFiniteNormal(query_point) &&
-          planarity > hybrid_planarity_threshold_ &&
-          linearity < hybrid_linearity_threshold_ &&
-          curvature < hybrid_curvature_threshold_;
-
-      if (use_normal_covariance) {
-        cov = CovarianceFromStoredNormal(query_point);
-#pragma omp atomic
-        frozen_count++;
-        continue;
-      }
-
-#pragma omp atomic
-      dynamic_count++;
 
       // Reconstitute the covariance matrix with modified singular values using
-      // the column     // vectors in V.
+      // the column vectors in U.
       for (int k = 0; k < 3; k++) {
         Eigen::Vector3d col = U.col(k);
         double v = 1.; // biggest 2 singular values replaced by 1
@@ -191,13 +168,14 @@ void pcl::MultithreadedGeneralizedIterativeClosestPoint<PointSource,
         cov += v * col * col.transpose();
       }
     }
-    if (covariance_mode == CovarianceMode::HYBRID_PLANARITY &&
+    if (covariance_mode == CovarianceMode::HYBRID_NORMAL_QUALITY &&
         k_enable_timing_output_) {
-      ROS_INFO_STREAM("Hybrid covariance gate: frozen="
-                      << frozen_count << ", dynamic=" << dynamic_count);
+      ROS_INFO_STREAM("Hybrid covariance gate: stored_normal="
+                      << stored_normal_count
+                      << ", gicp_fallback=" << gicp_fallback_count);
     }
   }
-                       }
+}
   ////////////////////////////////////////////////////////////////////////////////////////
   template <typename PointSource, typename PointTarget>
   void pcl::MultithreadedGeneralizedIterativeClosestPoint<
