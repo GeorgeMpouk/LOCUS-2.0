@@ -73,6 +73,7 @@ void addNormal(const PointCloudF& cloud,
     cloud_with_normals->points[i].normal_x = normals->points[i].normal_x;
     cloud_with_normals->points[i].normal_y = normals->points[i].normal_y;
     cloud_with_normals->points[i].normal_z = normals->points[i].normal_z;
+    cloud_with_normals->points[i].curvature = normals->points[i].curvature;
   }
 }
 

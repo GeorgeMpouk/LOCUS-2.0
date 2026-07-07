@@ -68,7 +68,8 @@ void pcl::MultithreadedGeneralizedIterativeClosestPoint<PointSource,
     computeCovariances(typename pcl::PointCloud<PointT>::ConstPtr cloud,
                        const typename pcl::search::KdTree<PointT>::Ptr kdtree,
                        MatricesVector& cloud_covariances,
-                       CovarianceMode covariance_mode) {
+                       CovarianceMode covariance_mode,
+                       const char* covariance_label) {
   if (k_correspondences_ > int(cloud->size())) {
     PCL_ERROR("[pcl::MultithreadedGeneralizedIterativeClosestPoint::"
               "computeCovariances] Number or points in cloud (%lu) is less "
@@ -168,11 +169,18 @@ void pcl::MultithreadedGeneralizedIterativeClosestPoint<PointSource,
         cov += v * col * col.transpose();
       }
     }
-    if (covariance_mode == CovarianceMode::HYBRID_NORMAL_QUALITY &&
-        k_enable_timing_output_) {
-      ROS_INFO_STREAM("Hybrid covariance gate: stored_normal="
-                      << stored_normal_count
-                      << ", gicp_fallback=" << gicp_fallback_count);
+    if (covariance_mode == CovarianceMode::HYBRID_NORMAL_QUALITY) {
+      const int total_count = stored_normal_count + gicp_fallback_count;
+      const double stored_normal_percent =
+          total_count > 0 ? 100.0 * stored_normal_count / total_count : 0.0;
+      const double gicp_fallback_percent =
+          total_count > 0 ? 100.0 * gicp_fallback_count / total_count : 0.0;
+      ROS_INFO_STREAM("Hybrid covariance gate [" << covariance_label
+                      << "]: stored_normal=" << stored_normal_count << " ("
+                      << stored_normal_percent << "%), gicp_fallback="
+                      << gicp_fallback_count << " (" << gicp_fallback_percent
+                      << "%), total=" << total_count
+                      << ", max_curvature=" << hybrid_max_curvature_);
     }
   }
 }
@@ -445,8 +453,11 @@ void pcl::MultithreadedGeneralizedIterativeClosestPoint<PointSource,
     auto start_covariances = std::chrono::steady_clock::now();
     if ((!target_covariances_) || (target_covariances_->empty())) {
       target_covariances_.reset(new MatricesVector);
-      computeCovariances<PointTarget>(
-          target_, tree_, *target_covariances_, target_covariance_mode_);
+      computeCovariances<PointTarget>(target_,
+                                      tree_,
+                                      *target_covariances_,
+                                      target_covariance_mode_,
+                                      "target");
     }
     // Compute input cloud covariance matrices
     if ((!input_covariances_) || (input_covariances_->empty())) {
@@ -454,7 +465,8 @@ void pcl::MultithreadedGeneralizedIterativeClosestPoint<PointSource,
       computeCovariances<PointSource>(input_,
                                       tree_reciprocal_,
                                       *input_covariances_,
-                                      source_covariance_mode_);
+                                      source_covariance_mode_,
+                                      "source");
     }
     auto end_covariances = std::chrono::steady_clock::now();
 

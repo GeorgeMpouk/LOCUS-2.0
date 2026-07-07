@@ -165,6 +165,11 @@ bool PointCloudOdometry::SetupICP() {
     gicp->SetTargetCovarianceMode(params_.target_covariance_mode);
     gicp->SetHybridNormalCurvatureThreshold(params_.hybrid_max_curvature);
     gicp->setEuclideanFitnessEpsilon(0.005);
+    ROS_INFO_STREAM("Covariance modes: source="
+                    << params_.source_covariance_mode
+                    << ", target=" << params_.target_covariance_mode
+                    << ", hybrid_max_curvature="
+                    << params_.hybrid_max_curvature);
     ROS_INFO_STREAM("GICP");
     ROS_INFO_STREAM("getMaxCorrespondenceDistance: "
                     << gicp->getMaxCorrespondenceDistance());

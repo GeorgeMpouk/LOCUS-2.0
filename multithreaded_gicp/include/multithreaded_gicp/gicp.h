@@ -391,7 +391,8 @@ protected:
   void computeCovariances(typename pcl::PointCloud<PointT>::ConstPtr cloud,
                           const typename pcl::search::KdTree<PointT>::Ptr tree,
                           MatricesVector& cloud_covariances,
-                          CovarianceMode covariance_mode);
+                          CovarianceMode covariance_mode,
+                          const char* covariance_label);
 
   // Helpers for covariance modes that use stored PointF normals.
   //-----------------------------------------------------------------------------
