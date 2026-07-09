@@ -51,3 +51,5 @@ internal/.catkin_tools
 # IDEs stuff
 *.vscode
 *.code-workspace
+
+LOCUS/HYBRID_GICP_MVP_RATIONALE.md
